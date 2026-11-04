@@ -56,12 +56,12 @@
     if (!list.length) {
       return '<p class="empty">対象の業務がありません。「1. 業務棚卸し」で「経験が要る」と区分した業務が、ここに表示されます。</p>';
     }
-    return '<div class="table-wrap"><table class="list"><thead><tr><th>業務名</th><th>係／役割</th><th>異動・退職近</th><th>記入済みの欄</th><th>最終更新</th><th></th></tr></thead><tbody>' +
+    return '<div class="table-wrap"><table class="list"><thead><tr><th>業務名</th><th>課・係／役割</th><th>異動・退職近</th><th>記入済みの欄</th><th>最終更新</th><th></th></tr></thead><tbody>' +
       list.map(function (t) {
         var h = t.handover || {};
         return '<tr' + (t.id === selectedId ? ' class="flag"' : '') + '>' +
           '<td class="name">' + esc(t.name) + '</td>' +
-          '<td>' + esc([t.section, t.role].filter(Boolean).join('／')) + '</td>' +
+          '<td>' + esc([D.orgText(t), t.role].filter(Boolean).join('／')) + '</td>' +
           '<td>' + (t.transferSoon === 'yes' ? '<span class="badge warn">異動・退職が近い</span>' : '') + '</td>' +
           '<td class="n">' + filled(t) + '／' + FIELDS.length + '</td>' +
           '<td>' + esc(h.updatedAt ? new Date(h.updatedAt).toLocaleDateString('ja-JP') : '') + '</td>' +
@@ -72,7 +72,7 @@
   function formHtml(t) {
     var h = t.handover || {};
     var meta = [
-      ['大分類', t.category], ['係／役割', [t.section, t.role].filter(Boolean).join('／')],
+      ['大分類', t.category], ['課・係／役割', [D.orgText(t), t.role].filter(Boolean).join('／')],
       ['頻度', D.freqText(t)], ['1回の所要時間', t.minutes === null ? '' : t.minutes + '分'],
       ['使う帳票・システム', t.forms]
     ].filter(function (m) { return m[1]; });

@@ -147,3 +147,5 @@ button.small { padding: 1px 8px; font-size: .8rem; }
 .pr-confirm .pr-date { width: 45mm; }
 .pr-stamp { height: 17mm; }
 .pr-foot { text-align: right; font-size: 8.5pt; margin: 1.5mm 0 0; }
+table.list tr.subtotal td { background: #eef1f5; font-weight: 600; }
+.notice.info { background: var(--accent-weak); color: var(--accent); }

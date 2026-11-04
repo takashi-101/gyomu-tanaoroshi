@@ -54,7 +54,7 @@
     var flags = function (list) { var o = {}; list.forEach(function (x) { o[x[0]] = false; }); return o; };
     return {
       id: uid(),
-      name: '', category: '', section: '', role: '', procedure: '',
+      name: '', category: '', division: '', section: '', role: '', procedure: '',
       freqUnit: 'month', freqCount: null, minutes: null, casesPerMonth: null,
       forms: '', issues: '',
       kind: '', need: '', ai: '', transferSoon: '',
@@ -71,7 +71,25 @@
     out.ease = Object.assign(newTask().ease, (t && t.ease) || {});
     ['freqCount', 'minutes', 'casesPerMonth'].forEach(function (k) { out[k] = num(out[k]); });
     if (!out.id) out.id = uid();
+    splitDivision(out);
     return out;
+  }
+
+  /* 前の版のデータ（課名の欄がなく、係名に「会計課 会計係」のように課と係を空白で区切って書いたもの）を、課名と係名に分ける */
+  function splitDivision(o) {
+    if (o.division) return o;
+    var m = /^(\S+課)[\s\u3000]+(\S.*)$/.exec(String(o.section || '').trim());
+    if (m) { o.division = m[1]; o.section = m[2]; }
+    return o;
+  }
+
+  function newSectionRow() {
+    return { id: uid(), division: '', section: '', beforePeriod: '', beforeHours: null, beforePeople: null, afterPeriod: '', afterHours: null, afterPeople: null, note: '' };
+  }
+
+  /* 課名と係名を並べた表示（例：会計課 会計係） */
+  function orgText(o) {
+    return [o.division, o.section].filter(function (x) { return x && String(x).trim(); }).join(' ');
   }
 
   function normalizeState(s) {
@@ -79,7 +97,9 @@
     if (!s || typeof s !== 'object') return st;
     st.tasks = Array.isArray(s.tasks) ? s.tasks.map(normalizeTask) : [];
     st.sections = Array.isArray(s.sections) ? s.sections.map(function (r) {
-      return Object.assign({ id: uid(), section: '', beforePeriod: '', beforeHours: null, beforePeople: null, afterPeriod: '', afterHours: null, afterPeople: null, note: '' }, r);
+      var row = splitDivision(Object.assign(newSectionRow(), r));
+      ['beforeHours', 'beforePeople', 'afterHours', 'afterPeople'].forEach(function (k) { row[k] = num(row[k]); });
+      return row;
     }) : [];
     st.settings = Object.assign(clone(DEFAULT_SETTINGS), s.settings || {});
     return st;
@@ -203,6 +223,42 @@
     return state;
   }
 
+  /* 追加で取り込む：今のデータは残し、読み込むファイルの業務と係単位の残業の行を足す。
+   * 同じ業務（同じID、または課名・係名・業務名がすべて同じ）は重ねて取り込まない。
+   * 係単位の残業の行は、課名・係名・前後の期間がすべて同じものを重なりとみなす。 */
+  function taskKey(t) {
+    return [t.division, t.section, t.name].map(function (x) { return String(x || '').trim(); }).join('\u0000');
+  }
+  function sectionKey(r) {
+    return [r.division, r.section, r.beforePeriod, r.afterPeriod].map(function (x) { return String(x || '').trim(); }).join('\u0000');
+  }
+  function mergeJSON(text) {
+    var obj = JSON.parse(text);
+    if (!obj || !Array.isArray(obj.tasks)) throw new Error('このツールで書き出したJSONではありません（tasks がありません）。');
+    var inc = normalizeState(obj);
+    var res = { addedTasks: [], dupTasks: [], addedSections: 0, dupSections: [] };
+    var ids = {}, keys = {}, sids = {}, skeys = {};
+    state.tasks.forEach(function (t) { ids[t.id] = 1; keys[taskKey(t)] = 1; });
+    state.sections.forEach(function (r) { sids[r.id] = 1; skeys[sectionKey(r)] = 1; });
+    inc.tasks.forEach(function (t) {
+      var k = taskKey(t);
+      if (ids[t.id] || keys[k]) { res.dupTasks.push(orgText(t) ? orgText(t) + '：' + t.name : t.name); return; }
+      ids[t.id] = 1; keys[k] = 1;
+      state.tasks.push(t);
+      res.addedTasks.push(t.name);
+    });
+    inc.sections.forEach(function (r) {
+      var k = sectionKey(r);
+      if (skeys[k]) { res.dupSections.push(orgText(r) || '（係名なし）'); return; }
+      if (sids[r.id]) r.id = uid(); // IDだけがたまたま同じ別の行
+      sids[r.id] = 1; skeys[k] = 1;
+      state.sections.push(r);
+      res.addedSections++;
+    });
+    save();
+    return res;
+  }
+
   function replaceState(obj) {
     state = normalizeState(obj);
     save();
@@ -215,7 +271,7 @@
   }
 
   function exportCSV() {
-    var head = ['業務名', '大分類（工程）', '係名', '役割', '手順', '頻度の単位', '頻度の回数', '1回の所要時間（分）', '件数（月）',
+    var head = ['業務名', '大分類（工程）', '課名', '係名', '役割', '手順', '頻度の単位', '頻度の回数', '1回の所要時間（分）', '件数（月）',
       '月あたりの回数（換算）', '月の作業時間（時間）', '使う帳票・システム', '課題メモ',
       '定型／経験が要る', '要る／要らない', 'AIに任せる候補か', '担当の異動・退職が近いか'];
     BURDEN.forEach(function (b) { head.push('負担：' + b[1]); });
@@ -224,7 +280,7 @@
     head.push('着手の印の数', '着手しやすい');
     var rows = [head];
     state.tasks.forEach(function (t) {
-      var r = [t.name, t.category, t.section, t.role, t.procedure, label(FREQ_UNITS, t.freqUnit), t.freqCount, t.minutes, t.casesPerMonth,
+      var r = [t.name, t.category, t.division, t.section, t.role, t.procedure, label(FREQ_UNITS, t.freqUnit), t.freqCount, t.minutes, t.casesPerMonth,
         fmt(monthlyCount(t), 2), fmt(monthlyHours(t), 2), t.forms, t.issues,
         label(KIND, t.kind), label(NEED, t.need), label(AI, t.ai), label(YESNO, t.transferSoon)];
       BURDEN.forEach(function (b) { r.push(t.burden[b[0]] ? '○' : ''); });
@@ -252,7 +308,7 @@
     monthlyCount: monthlyCount, monthlyHours: monthlyHours,
     burdenCount: burdenCount, easeCount: easeCount, isHighBurden: isHighBurden, isEasy: isEasy,
     label: label, freqText: freqText, fmt: fmt, num: num, uid: uid,
-    exportJSON: exportJSON, importJSON: importJSON, exportCSV: exportCSV, replaceState: replaceState, download: download
+    exportJSON: exportJSON, importJSON: importJSON, mergeJSON: mergeJSON, orgText: orgText, newSectionRow: newSectionRow, exportCSV: exportCSV, replaceState: replaceState, download: download
   };
   App.esc = esc;
 })();

@@ -68,10 +68,10 @@
     });
     if (!list.length) return '<p class="empty">「1. 業務棚卸し」で業務を登録すると表示されます。</p>';
     var total = list.reduce(function (s, t) { var h = D.monthlyHours(t); return s + (h || 0); }, 0);
-    return '<div class="table-wrap"><table class="list"><thead><tr><th class="n">順位</th><th>業務名</th><th>係</th><th>頻度</th><th class="n">1回（分）</th><th class="n">月の作業時間（時間）</th><th class="n">構成比</th><th>定型／経験</th><th>要否</th><th>AI候補</th><th>改善候補</th></tr></thead><tbody>' +
+    return '<div class="table-wrap"><table class="list"><thead><tr><th class="n">順位</th><th>業務名</th><th>課・係</th><th>頻度</th><th class="n">1回（分）</th><th class="n">月の作業時間（時間）</th><th class="n">構成比</th><th>定型／経験</th><th>要否</th><th>AI候補</th><th>改善候補</th></tr></thead><tbody>' +
       list.map(function (t, i) {
         var h = D.monthlyHours(t), c = isCandidate(t);
-        return '<tr' + (c ? ' class="flag"' : '') + '><td class="n">' + (h === null ? '' : i + 1) + '</td><td class="name">' + esc(t.name) + '</td><td>' + esc(t.section) + '</td>' +
+        return '<tr' + (c ? ' class="flag"' : '') + '><td class="n">' + (h === null ? '' : i + 1) + '</td><td class="name">' + esc(t.name) + '</td><td>' + esc(D.orgText(t)) + '</td>' +
           '<td>' + esc(D.freqText(t)) + '</td><td class="n">' + esc(D.fmt(t.minutes, 1)) + '</td>' +
           '<td class="n">' + (h === null ? '<span class="hint">頻度か所要時間が未記入</span>' : esc(D.fmt(h, 1))) + '</td>' +
           '<td class="n">' + (h === null || !total ? '' : D.fmt((h / total) * 100, 0) + '%') + '</td>' +
@@ -161,42 +161,105 @@
   /* --- 係単位の残業 --- */
   function sectionsHtml() {
     var rows = D.state.sections;
-    var secs = {};
-    D.state.tasks.forEach(function (t) { if (t.section) secs[t.section] = 1; });
+    var secs = {}, divs = {};
+    D.state.tasks.forEach(function (t) { if (t.section) secs[t.section] = 1; if (t.division) divs[t.division] = 1; });
     var inp = function (r, k, type, cls, ph) {
       var v = r[k] === null || r[k] === undefined ? '' : r[k];
-      return '<input ' + (type === 'num' ? 'type="number" min="0" step="any"' : 'type="text"') + ' class="' + (cls || '') + '" data-row="' + r.id + '" data-key="' + k + '" value="' + esc(v) + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + (k === 'section' ? ' list="dl-ot-section"' : '') + '>';
+      return '<input ' + (type === 'num' ? 'type="number" min="0" step="any"' : 'type="text"') + ' class="' + (cls || '') + '" data-row="' + r.id + '" data-key="' + k + '" value="' + esc(v) + '"' + (ph ? ' placeholder="' + esc(ph) + '"' : '') + (k === 'section' ? ' list="dl-ot-section"' : k === 'division' ? ' list="dl-ot-division"' : '') + '>';
     };
     var body = rows.map(function (r) {
-      return '<tr><td>' + inp(r, 'section', 'text', 'w-sec', '係名') + '</td>' +
+      return '<tr><td>' + inp(r, 'division', 'text', 'w-sec', '課名') + '</td><td>' + inp(r, 'section', 'text', 'w-sec', '係名') + '</td>' +
         '<td>' + inp(r, 'beforePeriod', 'text', 'w-per', '例：2026年4月') + '</td><td>' + inp(r, 'beforeHours', 'num', 'num') + '</td><td>' + inp(r, 'beforePeople', 'num', 'num') + '</td>' +
         '<td>' + inp(r, 'afterPeriod', 'text', 'w-per', '例：2026年10月') + '</td><td>' + inp(r, 'afterHours', 'num', 'num') + '</td><td>' + inp(r, 'afterPeople', 'num', 'num') + '</td>' +
         '<td><button type="button" class="danger" data-delrow="' + r.id + '">削除</button></td></tr>';
     }).join('');
-    return '<form id="sec-form"><div class="table-wrap"><table class="list compact"><thead><tr><th rowspan="2">係名</th><th colspan="3">改善の前</th><th colspan="3">改善の後</th><th rowspan="2"></th></tr>' +
+    return '<form id="sec-form"><div class="table-wrap"><table class="list compact"><thead><tr><th rowspan="2">課名</th><th rowspan="2">係名</th><th colspan="3">改善の前</th><th colspan="3">改善の後</th><th rowspan="2"></th></tr>' +
       '<tr><th>期間</th><th>残業時間（月・係計）</th><th>残業した人数</th><th>期間</th><th>残業時間（月・係計）</th><th>残業した人数</th></tr></thead><tbody>' + body + '</tbody></table></div>' +
+      '<datalist id="dl-ot-division">' + Object.keys(divs).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
       '<datalist id="dl-ot-section">' + Object.keys(secs).map(function (s) { return '<option value="' + esc(s) + '">'; }).join('') + '</datalist>' +
       '<div class="actions"><button type="button" id="sec-add">係を追加</button><button type="submit" class="primary">保存</button></div></form>' +
       '<p class="hint">残業は係単位で記録します（個人別の時間は記録しません）。比べる期間は、繁忙期が重ならないよう同じ月どうしなどでそろえてください。</p>';
   }
 
   function sectionsSummaryHtml() {
-    var rows = D.state.sections.filter(function (r) { return r.section || D.num(r.beforeHours) !== null || D.num(r.afterHours) !== null; });
+    var rows = D.state.sections.filter(function (r) { return r.section || r.division || D.num(r.beforeHours) !== null || D.num(r.afterHours) !== null; });
     if (!rows.length) return '';
     var tb = { bh: 0, ah: 0, bp: 0, ap: 0, nh: 0, np: 0 };
     var body = rows.map(function (r) {
       var bh = D.num(r.beforeHours), ah = D.num(r.afterHours), bp = D.num(r.beforePeople), ap = D.num(r.afterPeople);
       if (bh !== null && ah !== null) { tb.bh += bh; tb.ah += ah; tb.nh++; }
       if (bp !== null && ap !== null) { tb.bp += bp; tb.ap += ap; tb.np++; }
-      return '<tr><td class="name">' + esc(r.section) + '</td><td>' + (r.beforePeriod || r.afterPeriod ? esc(r.beforePeriod || '―') + ' → ' + esc(r.afterPeriod || '―') : '') + '</td>' +
+      return '<tr><td class="name">' + esc(D.orgText(r)) + '</td><td>' + (r.beforePeriod || r.afterPeriod ? esc(r.beforePeriod || '―') + ' → ' + esc(r.afterPeriod || '―') : '') + '</td>' +
         '<td class="n">' + (bh === null ? '―' : D.fmt(bh, 1)) + ' → ' + (ah === null ? '―' : D.fmt(ah, 1)) + '</td><td class="n"><strong>' + (bh !== null && ah !== null ? signed(bh - ah, '時間', 1) : '') + '</strong></td>' +
         '<td class="n">' + (bp === null ? '―' : bp) + ' → ' + (ap === null ? '―' : ap) + '</td><td class="n"><strong>' + (bp !== null && ap !== null ? signed(bp - ap, '人', 0) : '') + '</strong></td></tr>';
     }).join('');
     var foot = rows.length > 1 ? '<tfoot><tr><td class="name">合計</td><td></td><td class="n">' + D.fmt(tb.bh, 1) + ' → ' + D.fmt(tb.ah, 1) + '</td><td class="n"><strong>' + (tb.nh ? signed(tb.bh - tb.ah, '時間', 1) : '') + '</strong></td>' +
       '<td class="n">' + tb.bp + ' → ' + tb.ap + '</td><td class="n"><strong>' + (tb.np ? signed(tb.bp - tb.ap, '人', 0) : '') + '</strong></td></tr></tfoot>' : '';
-    return '<h3>残業の変化（係単位）</h3><div class="table-wrap"><table class="list"><thead><tr><th>係名</th><th>比べた期間</th><th class="n">残業時間（月）</th><th class="n">月に減った時間</th><th class="n">残業した人数</th><th class="n">減った人数</th></tr></thead><tbody>' +
+    return '<h3>残業の変化（係単位）</h3><div class="table-wrap"><table class="list"><thead><tr><th>課・係</th><th>比べた期間</th><th class="n">残業時間（月）</th><th class="n">月に減った時間</th><th class="n">残業した人数</th><th class="n">減った人数</th></tr></thead><tbody>' +
       body + '</tbody>' + foot + '</table></div>' +
       (rows.length > 1 ? '<p class="hint">合計は、前と後の両方の値がある係だけを足しています。</p>' : '');
+  }
+
+  /* --- 係ごと・課ごとの合計 --- */
+  var NO_DIV = '（課名なし）', NO_SEC = '（係名なし）';
+  function zero() { return { tasks: 0, hours: 0, noHours: 0, bh: 0, ah: 0, nh: 0, bp: 0, ap: 0, np: 0 }; }
+  function addInto(a, b) { Object.keys(a).forEach(function (k) { a[k] += b[k]; }); return a; }
+
+  function groupTotals() {
+    var divs = {};
+    var bucket = function (division, section) {
+      var dk = String(division || '').trim() || NO_DIV, sk = String(section || '').trim() || NO_SEC;
+      var d = divs[dk] = divs[dk] || {};
+      return (d[sk] = d[sk] || zero());
+    };
+    D.state.tasks.forEach(function (t) {
+      var g = bucket(t.division, t.section), h = D.monthlyHours(t);
+      g.tasks++;
+      if (h === null) g.noHours++; else g.hours += h;
+    });
+    D.state.sections.forEach(function (r) {
+      var bh = D.num(r.beforeHours), ah = D.num(r.afterHours), bp = D.num(r.beforePeople), ap = D.num(r.afterPeople);
+      if (!(r.division || r.section) && bh === null && ah === null && bp === null && ap === null) return;
+      var g = bucket(r.division, r.section);
+      if (bh !== null && ah !== null) { g.bh += bh; g.ah += ah; g.nh++; }
+      if (bp !== null && ap !== null) { g.bp += bp; g.ap += ap; g.np++; }
+    });
+    return divs;
+  }
+  App.groupTotals = groupTotals;
+
+  function sortNames(names) {
+    var blank = function (n) { return n === NO_DIV || n === NO_SEC; };
+    return names.sort(function (a, b) {
+      if (blank(a) !== blank(b)) return blank(a) ? 1 : -1;
+      return a.localeCompare(b, 'ja');
+    });
+  }
+
+  function groupsHtml() {
+    var divs = groupTotals();
+    var names = sortNames(Object.keys(divs));
+    if (!names.length) return '<p class="empty">業務か係単位の残業を記録すると表示されます。</p>';
+    var cells = function (g) {
+      return '<td class="n">' + g.tasks + '</td>' +
+        '<td class="n">' + (g.tasks - g.noHours ? D.fmt(g.hours, 1) : '―') + (g.noHours ? ' <span class="hint">（未記入' + g.noHours + '件）</span>' : '') + '</td>' +
+        '<td class="n">' + (g.nh ? D.fmt(g.bh, 1) + ' → ' + D.fmt(g.ah, 1) : '―') + '</td><td class="n"><strong>' + (g.nh ? signed(g.bh - g.ah, '時間', 1) : '') + '</strong></td>' +
+        '<td class="n">' + (g.np ? g.bp + ' → ' + g.ap : '―') + '</td><td class="n"><strong>' + (g.np ? signed(g.bp - g.ap, '人', 0) : '') + '</strong></td>';
+    };
+    var all = zero();
+    var body = names.map(function (dn) {
+      var sub = zero();
+      var rows = sortNames(Object.keys(divs[dn])).map(function (sn) {
+        addInto(sub, divs[dn][sn]);
+        return '<tr data-group="section"><td>' + esc(dn) + '</td><td class="name">' + esc(sn) + '</td>' + cells(divs[dn][sn]) + '</tr>';
+      }).join('');
+      addInto(all, sub);
+      return rows + '<tr class="subtotal" data-group="division"><td class="name">' + esc(dn) + '</td><td>課の合計</td>' + cells(sub) + '</tr>';
+    }).join('');
+    return '<div class="table-wrap"><table class="list" id="ot-groups-table"><thead><tr><th>課名</th><th>係名</th><th class="n">業務の件数</th><th class="n">月の作業時間（時間）</th>' +
+      '<th class="n">残業時間（月）前 → 後</th><th class="n">月に減った時間</th><th class="n">残業した人数 前 → 後</th><th class="n">減った人数</th></tr></thead><tbody>' + body + '</tbody>' +
+      (names.length > 1 ? '<tfoot><tr data-group="all"><td class="name">全体の合計</td><td></td>' + cells(all) + '</tr></tfoot>' : '') + '</table></div>' +
+      '<p class="hint">月の作業時間は、頻度か所要時間が未記入の業務を除いて足しています。残業時間と人数は、係単位の残業の行のうち、前と後の両方の値がある行だけを足しています。同じ係に複数の行（期間の違う行など）があるときは、それらも足し合わせています。</p>';
   }
 
   function render(el) {
@@ -205,7 +268,8 @@
       '<div class="panel" id="ot-rank"><h2>月の作業時間（多い順）</h2><p class="lead">頻度×1回の所要時間から月の作業時間を出しています。</p>' + rankingHtml() + '</div>' +
       '<div class="panel" id="ot-matrix"><h2>負担の大きさ×着手しやすさの4区分</h2>' + matrixHtml() + '</div>' +
       '<div class="panel" id="ot-improve"><h2>業務ごとの改善の前と後</h2><p class="lead">BPRの効果を、業務ごとの所要時間・工程数・手戻り件数などで記録します。</p>' + improveFormHtml() + '<h3>改善の前後の比較</h3>' + improveSummaryHtml() + '</div>' +
-      '<div class="panel" id="ot-sections"><h2>係単位の残業時間</h2>' + sectionsHtml() + sectionsSummaryHtml() + '</div>';
+      '<div class="panel" id="ot-sections"><h2>係単位の残業時間</h2>' + sectionsHtml() + sectionsSummaryHtml() + '</div>' +
+      '<div class="panel" id="ot-groups"><h2>係ごと・課ごとの合計</h2><p class="lead">月の作業時間と、改善の前と後の残業時間・残業した人数を、係ごとと課ごとに足し上げます。複数の係のJSONを「JSONを追加で取り込む」で取り込むと、課単位で横並びに見られます。</p>' + groupsHtml() + '</div>';
     bind(el);
   }
 
@@ -257,7 +321,7 @@
     };
     el.querySelector('#sec-add').onclick = function () {
       collect();
-      D.state.sections.push({ id: D.uid(), section: '', beforePeriod: '', beforeHours: null, beforePeople: null, afterPeriod: '', afterHours: null, afterPeople: null, note: '' });
+      D.state.sections.push(D.newSectionRow());
       D.save();
       render(el);
     };

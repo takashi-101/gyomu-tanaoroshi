@@ -6,7 +6,7 @@
 
   var editing = null; // 編集中の業務（新規含む）
   var sortKey = 'monthlyHours', sortDir = -1;
-  var filters = { q: '', section: '', category: '', kind: '', need: '', ai: '', transferSoon: '', judge: '' };
+  var filters = { q: '', division: '', section: '', category: '', kind: '', need: '', ai: '', transferSoon: '', judge: '' };
 
   App.register({ id: 'inventory', label: '1. 業務棚卸し', order: 1, render: render });
 
@@ -50,6 +50,7 @@
       '<input id="f-name" name="name" required value="' + esc(t.name) + '">' +
       '<p class="hint">作業単位で書く（細かすぎる動作や、大きすぎる業務のくくりにしない）。例：「支出負担行為の審査」○／「書類を開く」×／「会計事務」×</p></div>' +
       '<div class="field"><label for="f-category">大分類（工程）</label><input id="f-category" name="category" list="dl-category" value="' + esc(t.category) + '" placeholder="例：受付、審査、決裁、支払、照会対応"></div>' +
+      '<div class="field"><label for="f-division">担当：課名</label><input id="f-division" name="division" list="dl-division" value="' + esc(t.division) + '" placeholder="例：会計課"></div>' +
       '<div class="field"><label for="f-section">担当：係名</label><input id="f-section" name="section" list="dl-section" value="' + esc(t.section) + '" placeholder="例：会計係"></div>' +
       '<div class="field"><label for="f-role">担当：役割</label><input id="f-role" name="role" list="dl-role" value="' + esc(t.role) + '" placeholder="例：主担当、副担当、係長決裁（個人名は入れない）"></div>' +
       '<div class="field"><label>頻度</label><div class="inline">' +
@@ -73,7 +74,7 @@
       '</div>' +
       '<p class="hint">印が' + D.JUDGE_THRESHOLD + 'つ以上で「負担大」「着手しやすい」と表示します。区分の判断は現場で行ってください。</p>' +
       '<div class="actions"><button type="submit" class="primary">保存</button><button type="button" id="inv-cancel">閉じる</button></div>' +
-      datalist('dl-category', 'category') + datalist('dl-section', 'section') + datalist('dl-role', 'role') +
+      datalist('dl-category', 'category') + datalist('dl-division', 'division') + datalist('dl-section', 'section') + datalist('dl-role', 'role') +
       '</form>';
   }
 
@@ -89,7 +90,7 @@
 
   function readForm(form, t) {
     var fd = new FormData(form);
-    ['name', 'category', 'section', 'role', 'procedure', 'forms', 'issues', 'freqUnit', 'kind', 'need', 'ai', 'transferSoon'].forEach(function (k) {
+    ['name', 'category', 'division', 'section', 'role', 'procedure', 'forms', 'issues', 'freqUnit', 'kind', 'need', 'ai', 'transferSoon'].forEach(function (k) {
       var v = fd.get(k);
       t[k] = v === null ? '' : String(v).trim();
     });
@@ -108,9 +109,10 @@
   function matches(t) {
     var f = filters;
     if (f.q) {
-      var hay = [t.name, t.category, t.section, t.role, t.procedure, t.forms, t.issues].join(' ').toLowerCase();
+      var hay = [t.name, t.category, t.division, t.section, t.role, t.procedure, t.forms, t.issues].join(' ').toLowerCase();
       if (hay.indexOf(f.q.toLowerCase()) < 0) return false;
     }
+    if (f.division && t.division !== f.division) return false;
     if (f.section && t.section !== f.section) return false;
     if (f.category && t.category !== f.category) return false;
     if (f.kind && t.kind !== f.kind) return false;
@@ -124,7 +126,7 @@
   }
 
   var COLS = [
-    ['name', '業務名'], ['category', '大分類'], ['section', '係'], ['role', '役割'], ['freq', '頻度'],
+    ['name', '業務名'], ['category', '大分類'], ['section', '課・係'], ['role', '役割'], ['freq', '頻度'],
     ['minutes', '1回（分）'], ['monthlyHours', '月の作業時間（時間）'], ['casesPerMonth', '件数（月）'],
     ['kind', '定型／経験'], ['need', '要否'], ['ai', 'AI候補'], ['transferSoon', '異動・退職近'],
     ['burden', '負担の印'], ['ease', '着手の印']
@@ -136,6 +138,7 @@
       case 'freq': return D.monthlyCount(t);
       case 'burden': return D.burdenCount(t);
       case 'ease': return D.easeCount(t);
+      case 'section': return D.orgText(t);
       default: return t[k];
     }
   }
@@ -159,6 +162,7 @@
     var pairs = function (arr) { return arr.map(function (v) { return [v, v]; }); };
     return '<div class="filters">' +
       '<input type="search" data-filter="q" placeholder="語句で絞り込み" value="' + esc(filters.q) + '">' +
+      sel('division', pairs(uniq('division')), '課：すべて') +
       sel('section', pairs(uniq('section')), '係：すべて') +
       sel('category', pairs(uniq('category')), '大分類：すべて') +
       sel('kind', D.KIND, '定型／経験：すべて') +
@@ -184,7 +188,7 @@
     var body = list.map(function (t) {
       return '<tr>' + opsCell(t) +
         '<td class="name" title="' + esc(t.procedure) + '">' + esc(t.name) + '</td>' +
-        '<td>' + esc(t.category) + '</td><td>' + esc(t.section) + '</td><td>' + esc(t.role) + '</td>' +
+        '<td>' + esc(t.category) + '</td><td>' + esc(D.orgText(t)) + '</td><td>' + esc(t.role) + '</td>' +
         '<td>' + esc(D.freqText(t)) + '</td>' +
         '<td class="n">' + esc(D.fmt(t.minutes, 1)) + '</td>' +
         '<td class="n">' + esc(D.fmt(D.monthlyHours(t), 1)) + '</td>' +

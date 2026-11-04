@@ -25,11 +25,11 @@
       return '<tr><th>' + esc(f[1]) + (f[2] && f[0] !== 'nonTransferable' ? '<small>' + esc(f[2]) + '</small>' : '') + '</th><td class="pr-text">' + text(h[f[0]]) + '</td></tr>';
     }).join('');
     return '<article class="pr-sheet">' +
-      '<div class="pr-top"><span>' + esc(t.section) + '</span><span>作成日　' + esc(wareki(new Date())) + '</span></div>' +
+      '<div class="pr-top"><span>' + esc(D.orgText(t)) + '</span><span>作成日　' + esc(wareki(new Date())) + '</span></div>' +
       '<h1>事　務　引　継　書</h1>' +
       '<table class="pr-table">' +
       '<tr><th>業務名</th><td colspan="3"><strong>' + esc(t.name) + '</strong></td></tr>' +
-      '<tr><th>所属（係）</th><td>' + text(t.section) + '</td><th>担当の役割</th><td>' + text(t.role) + '</td></tr>' +
+      '<tr><th>所属（課・係）</th><td>' + text(D.orgText(t)) + '</td><th>担当の役割</th><td>' + text(t.role) + '</td></tr>' +
       '<tr><th>大分類（工程）</th><td>' + text(t.category) + '</td><th>頻度</th><td>' + text(D.freqText(t)) + '</td></tr>' +
       '<tr><th>1回の所要時間</th><td>' + (t.minutes === null ? text('') : esc(D.fmt(t.minutes, 1)) + '分') + '</td><th>件数（月）／月の作業時間</th><td>' +
       (t.casesPerMonth === null ? '―' : esc(D.fmt(t.casesPerMonth, 1)) + '件') + '　／　' + (hours === null ? '―' : esc(D.fmt(hours, 1)) + '時間') + '</td></tr>' +
