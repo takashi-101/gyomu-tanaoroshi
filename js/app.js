@@ -12,7 +12,24 @@
   App.toolbarItems = [];
   App.addToolbarItem = function (fn) { App.toolbarItems.push(fn); };
 
+  /* 保存していない入力があるときに、画面を離れる前に確かめるための口
+   * guard() は、保存していない入力があれば確認の文を、なければ空を返す */
+  var leaveGuards = [];
+  App.addLeaveGuard = function (guard) { leaveGuards.push(guard); };
+  App.confirmLeave = function () {
+    for (var i = 0; i < leaveGuards.length; i++) {
+      var msg = leaveGuards[i]();
+      if (msg && !confirm(msg)) return false;
+    }
+    return true;
+  };
+  window.addEventListener('beforeunload', function (e) {
+    var dirty = leaveGuards.some(function (g) { return !!g(); });
+    if (dirty) { e.preventDefault(); e.returnValue = ''; }
+  });
+
   App.show = function (id) {
+    if (current && current !== id && !App.confirmLeave()) return;
     current = id;
     views.forEach(function (v) {
       var sec = document.getElementById('view-' + v.id);

@@ -20,6 +20,23 @@
 
   var selectedId = null;
 
+  /* 記録の画面で、保存していない入力があるか */
+  function unsavedMessage() {
+    var form = document.getElementById('ho-form');
+    if (!form || !selectedId) return '';
+    var t = D.getTask(selectedId);
+    var h = (t && t.handover) || {};
+    var dirty = FIELDS.some(function (f) { return (form.elements[f[0]].value || '') !== (h[f[0]] || ''); });
+    return dirty ? '「' + t.name + '」の事務引継ぎ記録に、保存していない入力があります。このまま移ると入力は消えます。移りますか。\n（残すには「キャンセル」を押し、「保存」を押してください）' : '';
+  }
+  App.handoverUnsaved = unsavedMessage;
+  App.addLeaveGuard(function () { return App.current() === 'handover' ? unsavedMessage() : ''; });
+
+  function confirmDiscard() {
+    var msg = unsavedMessage();
+    return !msg || confirm(msg);
+  }
+
   App.register({ id: 'handover', label: '2. 事務引継ぎ記録', order: 2, render: render });
 
   function targets() {
@@ -92,6 +109,7 @@
   function bind(el, t) {
     el.querySelectorAll('[data-open]').forEach(function (b) {
       b.onclick = function () {
+        if (b.dataset.open !== selectedId && !confirmDiscard()) return;
         selectedId = b.dataset.open;
         render(el);
         el.querySelector('#ho-panel').scrollIntoView({ block: 'start' });
@@ -111,7 +129,10 @@
       var s = el.querySelector('#ho-saved');
       if (s) s.textContent = '保存しました（' + new Date().toLocaleTimeString('ja-JP') + '）';
     };
-    el.querySelector('#ho-close').onclick = function () { selectedId = null; render(el); };
+    el.querySelector('#ho-close').onclick = function () {
+      if (!confirmDiscard()) return;
+      selectedId = null; render(el);
+    };
     var extras = el.querySelector('#ho-extras');
     App.handoverExtras.forEach(function (fn) { fn(t, extras, form); });
   }
