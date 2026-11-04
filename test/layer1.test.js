@@ -26,13 +26,13 @@ const path = require('path');
   };
   await add({ name: '支出命令の審査', cat: '審査', sec: '会計係', unit: 'day', count: 2, min: 15, kind: 'routine', burden: ['daily', 'slow', 'error'], ease: ['inSection'] });
   await add({ name: '例月出納検査の準備', cat: '検査', sec: '会計係', unit: 'month', count: 1, min: 240, kind: 'expert', burden: [], ease: ['inSection', 'noOutside', 'noRule'] });
-  const rows = await page.$$eval('table.list tbody tr', trs => trs.map(tr => [...tr.cells].map(c => c.textContent.trim())));
+  const rows = await page.$$eval('table.list tbody tr', trs => trs.map(tr => [...tr.cells].slice(1).map(c => c.textContent.trim())));
   console.log('rows', JSON.stringify(rows));
   // 日2回×20日×15分=600分=10時間、月1回×240分=4時間
   if (rows[0][0] !== '支出命令の審査' || rows[0][6] !== '10') throw new Error('月の作業時間 or 並び順が違う');
   if (!rows[0][14].includes('負担大') || !rows[1][14].includes('着手しやすい')) throw new Error('判定が違う');
   await page.click('button[data-sort=name]');
-  const first = await page.$eval('table.list tbody tr td', td => td.textContent);
+  const first = await page.$eval('table.list tbody tr td.name', td => td.textContent);
   console.log('sorted by name first:', first);
   await page.selectOption('select[data-filter=kind]', 'expert');
   const n = await page.$$eval('table.list tbody tr', t => t.length);

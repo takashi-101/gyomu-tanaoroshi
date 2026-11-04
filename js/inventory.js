@@ -169,15 +169,20 @@
       '<button type="button" id="inv-clear">条件を外す</button></div>';
   }
 
+  function opsCell(t) {
+    return '<td class="ops"><button type="button" data-edit="' + t.id + '">編集</button><button type="button" data-copy="' + t.id + '">複製</button><button type="button" class="danger" data-del="' + t.id + '">削除</button></td>';
+  }
+
   function tableHtml() {
     var all = D.state.tasks;
     var list = sorted(all.filter(matches));
     var head = COLS.map(function (c) {
       var mark = sortKey === c[0] ? (sortDir > 0 ? ' ▲' : ' ▼') : '';
       return '<th><button type="button" class="sort" data-sort="' + c[0] + '">' + c[1] + mark + '</button></th>';
-    }).join('') + '<th>判定</th><th>操作</th>';
+    }).join('') + '<th>判定</th>';
+    head = '<th>操作</th>' + head;
     var body = list.map(function (t) {
-      return '<tr>' +
+      return '<tr>' + opsCell(t) +
         '<td class="name" title="' + esc(t.procedure) + '">' + esc(t.name) + '</td>' +
         '<td>' + esc(t.category) + '</td><td>' + esc(t.section) + '</td><td>' + esc(t.role) + '</td>' +
         '<td>' + esc(D.freqText(t)) + '</td>' +
@@ -188,7 +193,6 @@
         '<td>' + esc(D.label(D.AI, t.ai)) + '</td><td>' + esc(D.label(D.YESNO, t.transferSoon)) + '</td>' +
         '<td class="n">' + D.burdenCount(t) + '</td><td class="n">' + D.easeCount(t) + '</td>' +
         '<td>' + judgeText(t) + '</td>' +
-        '<td class="ops"><button type="button" data-edit="' + t.id + '">編集</button><button type="button" data-copy="' + t.id + '">複製</button><button type="button" class="danger" data-del="' + t.id + '">削除</button></td>' +
         '</tr>';
     }).join('');
     if (!all.length) return '<p class="empty">まだ業務が登録されていません。「新規登録」から業務棚卸し票を作成してください。</p>';
