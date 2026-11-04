@@ -175,7 +175,7 @@
       '<p class="hint">接続先は http://localhost または http://127.0.0.1 のみ指定できます。既定のモデルは ' + esc(DEFAULTS.model) + ' です。</p></details></div>' +
       '<p id="iv-msg" class="hint" role="status"></p>' +
       '<div id="iv-threads"></div>';
-    container.insertBefore(box, container.firstChild);
+    container.appendChild(box);
     mounted = { t: t, container: container, form: form, box: box };
 
     var msg = box.querySelector('#iv-msg');

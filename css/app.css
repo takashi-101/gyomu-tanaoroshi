@@ -118,3 +118,32 @@ table.compact td, table.compact th { white-space: nowrap; }
 .iv-ops { margin-top: 4px; }
 button.small { padding: 1px 8px; font-size: .8rem; }
 .warn-text { color: var(--warn); }
+.print-actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+
+/* ---- 事務引継書（印刷） ---- */
+@page { size: A4 portrait; margin: 14mm 14mm 12mm; }
+@media print {
+  body.print-mode > *:not(#print-area) { display: none !important; }
+  body.print-mode { background: #fff; }
+  body.print-mode #print-area { display: block; }
+}
+#print-area { font-family: "Yu Mincho", "YuMincho", "MS Mincho", "Hiragino Mincho ProN", "Noto Serif JP", serif; color: #000; font-size: 10pt; line-height: 1.5; }
+.pr-sheet { break-after: page; page-break-after: always; }
+.pr-sheet:last-child { break-after: auto; page-break-after: auto; }
+.pr-top { display: flex; justify-content: space-between; font-size: 9.5pt; }
+.pr-sheet h1 { text-align: center; font-size: 17pt; margin: 4mm 0 4mm; font-weight: 600; letter-spacing: .1em; }
+.pr-sheet h2 { font-size: 11pt; margin: 4mm 0 1.5mm; }
+.pr-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
+.pr-table th, .pr-table td { border: 0.8pt solid #000; padding: 1.3mm 2mm; vertical-align: top; text-align: left; word-break: break-all; }
+.pr-table th { background: #eee; font-weight: 600; width: 32mm; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+.pr-table th small { display: block; font-weight: 400; font-size: 8pt; }
+.pr-items th { width: 40mm; }
+.pr-items td { height: 20mm; }
+.pr-text { white-space: pre-wrap; }
+.pr-none { color: #555; }
+.pr-note { margin: 2mm 0 3mm; font-size: 9.5pt; }
+.pr-confirm th, .pr-confirm td { text-align: center; vertical-align: middle; }
+.pr-confirm th { width: auto; }
+.pr-confirm .pr-date { width: 45mm; }
+.pr-stamp { height: 17mm; }
+.pr-foot { text-align: right; font-size: 8.5pt; margin: 1.5mm 0 0; }
