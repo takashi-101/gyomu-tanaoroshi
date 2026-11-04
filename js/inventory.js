@@ -194,7 +194,7 @@
     if (!all.length) return '<p class="empty">まだ業務が登録されていません。「新規登録」から業務棚卸し票を作成してください。</p>';
     return '<p class="count">' + list.length + ' 件を表示（全 ' + all.length + ' 件）</p>' +
       '<div class="table-wrap"><table class="list"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
-      '<p class="hint">月の作業時間＝頻度を月あたりの回数に換算した値×1回の所要時間。日次は月' + esc(D.state.settings.daysPerMonth) + '日、週次は月' + esc(D.state.settings.weeksPerMonth) + '週、年次は12で割って換算しています（換算の日数は「3. 残業の見える化」で変更できます）。</p>';
+      '<p class="hint">月の作業時間＝頻度を月あたりの回数に換算した値×1回の所要時間。日次は月' + esc(D.state.settings.daysPerMonth) + '日、週次は月' + esc(D.state.settings.weeksPerMonth) + '週、年次は12で割って換算しています' + (App.hasView('overtime') ? '（換算の日数は「3. 残業の見える化」で変更できます）' : '') + '。</p>';
   }
 
   function render(el) {
