@@ -6,7 +6,7 @@ const path = require('path');
   const page = await browser.newPage({ viewport: { width: 1300, height: 900 } });
   const errors = [];
   page.on('pageerror', e => errors.push(e.message));
-  page.on('console', m => { if (m.type() === 'error') errors.push(m.text()); });
+  page.on('console', m => { if (m.type() === 'error' && !/ERR_CONNECTION_REFUSED/.test(m.text())) errors.push(m.text()); }); // Ollama未接続時の接続確認は除く
   page.on('dialog', d => d.accept());
   await page.goto('file://' + path.resolve(__dirname, '../index.html'));
   await page.evaluate(() => {

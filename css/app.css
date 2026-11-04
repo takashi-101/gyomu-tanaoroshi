@@ -104,3 +104,17 @@ table.compact td, table.compact th { white-space: nowrap; }
 .q-low { background: #f4f5f7; }
 
 .panel h3 { margin-top: 16px; }
+.interview { margin-top: 18px; border-top: 1px dashed var(--line); padding-top: 12px; }
+.interview h3 { margin-top: 0; }
+.w-url { width: 16em; } .w-model { width: 12em; }
+.iv-settings summary { color: var(--accent); }
+.iv-thread { border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin-top: 10px; background: #fff; }
+.iv-thread-head { display: flex; gap: 8px; align-items: center; }
+.iv-thread-head .danger { margin-left: auto; }
+.iv-step { border-left: 3px solid var(--accent-weak); padding: 6px 0 6px 10px; margin-top: 8px; }
+.iv-q p { margin: 4px 0; font-weight: 600; }
+.iv-label { font-size: .78rem; color: var(--muted); }
+.iv-a { display: block; font-size: .85rem; color: var(--muted); }
+.iv-ops { margin-top: 4px; }
+button.small { padding: 1px 8px; font-size: .8rem; }
+.warn-text { color: var(--warn); }
