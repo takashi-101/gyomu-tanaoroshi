@@ -128,7 +128,7 @@ node test/unsaved.test.js
 
 | 関わる機能 | 修了証 | 照会先 |
 |---|---|---|
-| 層4（AIによる聞き取り支援） | IBM「Fundamentals of Building AI Agents」 | https://coursera.org/verify/D9XDUKLFARCU |
-| 層4 | IBM「Agentic AI with LangChain and LangGraph」 | https://coursera.org/verify/E66567PXHGIC |
-| 層4 | IBM「RAG and Agentic AI Capstone Project」 | https://coursera.org/verify/SZK1RAMV4F6R |
-| 層4（閉域での実行） | 閉域ローカルLLMの実測記録 | https://github.com/takashi-101/local-llm-record |
+| 4. AIによる聞き取り支援 | IBM「Fundamentals of Building AI Agents」 | https://coursera.org/verify/D9XDUKLFARCU |
+| 4. AIによる聞き取り支援 | IBM「Agentic AI with LangChain and LangGraph」 | https://coursera.org/verify/E66567PXHGIC |
+| 4. AIによる聞き取り支援 | IBM「RAG and Agentic AI Capstone Project」 | https://coursera.org/verify/SZK1RAMV4F6R |
+| 4. AIによる聞き取り支援（閉域での実行） | 閉域ローカルLLMの実測記録 | https://github.com/takashi-101/local-llm-record |
