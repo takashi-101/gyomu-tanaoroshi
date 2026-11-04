@@ -68,3 +68,15 @@ button.sort { border: none; background: none; padding: 0; font-weight: 600; font
 .empty { color: var(--muted); padding: 12px 0; }
 #print-area { display: none; }
 @media (max-width: 700px) { .rowlabel { min-width: 100%; } main { padding: 12px; } }
+.ho-layout { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 16px; align-items: start; }
+.ho-main { margin-top: 0; }
+.ho-main .field { margin-top: 10px; }
+.ho-side { position: sticky; top: 12px; }
+.caution { border-left: 4px solid var(--warn); background: var(--warn-weak); color: var(--warn); padding: 10px 12px; margin: 0 0 8px; font-weight: 600; border-radius: 0 6px 6px 0; }
+.hint-inline { font-weight: 400; color: var(--muted); font-size: .82rem; }
+dl.meta { display: grid; grid-template-columns: max-content 1fr; gap: 2px 12px; margin: 0 0 8px; font-size: .88rem; }
+dl.meta dt { color: var(--muted); }
+dl.meta dd { margin: 0; }
+.pre { white-space: pre-wrap; margin: 4px 0; font-size: .9rem; }
+details summary { cursor: pointer; color: var(--accent); font-size: .9rem; }
+@media (max-width: 900px) { .ho-layout { grid-template-columns: 1fr; } .ho-side { position: static; order: -1; } }
