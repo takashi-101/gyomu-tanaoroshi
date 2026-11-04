@@ -73,16 +73,22 @@
     });
   }
 
-  var SYSTEM = 'あなたは自治体・官公庁の事務引継ぎで、経験のある職員から判断の経験知を聞き取る聞き手です。' +
+  var SYSTEM = 'あなたは自治体・官公庁の事務引継ぎで、経験のある職員から、ある業務の判断の経験知を聞き取る聞き手です。' +
+    '聞き取りの対象は、指定された業務そのもの（その業務を実際に行う場面での判断）です。' +
+    '業務棚卸し票や事務引継ぎ記録の書き方・作り方・記入のしかた、このツールの使い方は聞かないでください。' +
     '役割は質問を作ることだけです。答えの例、手順、判断の正解、助言は書かないでください。' +
-    '質問は、相手がその場面を思い出して具体的に答えられる、短い日本語の一文にしてください。' +
+    '質問は、相手がその業務の場面を思い出して具体的に答えられる、短い日本語の一文にしてください。' +
     '同じことを何度も聞かず、相手がすでに書いた内容は踏まえたうえで、足りない点を聞いてください。';
 
+  /* モデルに渡す業務の内容。「棚卸し票」などの様式の名前は出さず、業務の情報として渡す
+   * （様式の名前を出すと、様式の書き方を聞く質問が作られることがあったため） */
   function recordText(t) {
     var h = t.handover || {};
-    var lines = ['業務名：' + t.name];
-    if (t.category) lines.push('大分類：' + t.category);
-    if (t.procedure) lines.push('棚卸し票の手順：' + t.procedure);
+    var lines = ['対象の業務：' + t.name];
+    if (t.category) lines.push('工程：' + t.category);
+    if (t.forms) lines.push('使う帳票・システム：' + t.forms);
+    if (t.procedure) lines.push('業務の流れ（概要）：' + t.procedure);
+    lines.push('', 'この業務について、本人がこれまでに書いた内容：');
     App.HANDOVER_FIELDS.forEach(function (f) {
       lines.push('【' + f[1] + '】' + (h[f[0]] && h[f[0]].trim() ? h[f[0]].trim() : '（未記入）'));
     });
@@ -90,20 +96,23 @@
   }
 
   function firstPrompt(t) {
-    return '次は事務引継ぎ記録の現在の内容です。\n\n' + recordText(t) + '\n\n' +
-      '段階1「' + STAGES[0].name + '」の聞き取り質問を3問作ってください。ねらい：' + STAGES[0].aim + '。' +
+    return recordText(t) + '\n\n' +
+      '業務「' + t.name + '」を実際に行う場面について、段階1「' + STAGES[0].name + '」の聞き取り質問を3問作ってください。ねらい：' + STAGES[0].aim + '。' +
+      '段階1では事実だけを聞き、「なぜ」「理由」「根拠」は聞かないでください（それは次の段階で聞きます）。' +
       '未記入や記述が薄い欄を優先してください。' +
-      '出力はJSONのみで、形式は {"questions":[{"field":"欄のキー","question":"質問文"}]} です。' +
+      '出力はJSONのみで、形式は {"questions":[{"stage":1,"field":"欄のキー","question":"質問文"}]} です。' +
+      'stage には、その質問が聞いている段階の番号（1：事実の確認、2：なぜそう判断したのか、3：他のやり方ではなぜだめなのか、4：例外と判断が変わる条件）を入れてください。' +
       '欄のキーは decision（判断の分かれ目）, reason（理由）, whyNot（他のやり方を取らない理由）, exceptions（例外）, steps（次の人への手順）のどれかです。';
   }
 
   function nextPrompt(t, thread) {
-    var stage = STAGES[thread.steps.length]; // 次の段階
+    var last = thread.steps[thread.steps.length - 1];
+    var stage = STAGES[last.stage]; // 最後の質問の次の段階
     var hist = thread.steps.map(function (s) {
       return '段階' + s.stage + '「' + STAGES[s.stage - 1].name + '」の質問：' + s.q + '\n本人の答え：' + (s.a || '（未記入）');
     }).join('\n\n');
-    return '次は事務引継ぎ記録の現在の内容です。\n\n' + recordText(t) + '\n\nここまでの聞き取り：\n' + hist + '\n\n' +
-      '最後の答えを受けて、段階' + stage.no + '「' + stage.name + '」の質問を1問だけ作ってください。ねらい：' + stage.aim + '。' +
+    return recordText(t) + '\n\nここまでの聞き取り：\n' + hist + '\n\n' +
+      '最後の答えを受けて、業務「' + t.name + '」について、段階' + stage.no + '「' + stage.name + '」の質問を1問だけ作ってください。ねらい：' + stage.aim + '。' +
       '出力はJSONのみで、形式は {"question":"質問文"} です。';
   }
 
@@ -112,14 +121,36 @@
       var j = JSON.parse(text);
       if (Array.isArray(j.questions)) {
         return j.questions.map(function (q) {
-          return typeof q === 'string' ? { field: '', question: q } : { field: q.field || '', question: String(q.question || '') };
+          return typeof q === 'string' ? { field: '', question: q, stage: null } : { field: q.field || '', question: String(q.question || ''), stage: Number(q.stage) || null };
         }).filter(function (q) { return q.question.trim(); });
       }
-      if (j.question) return [{ field: '', question: String(j.question) }];
+      if (j.question) return [{ field: '', question: String(j.question), stage: Number(j.stage) || null }];
     } catch (e) { /* JSONでなければ行で分ける */ }
     return String(text).split(/\n+/).map(function (l) { return l.replace(/^\s*[-・*\d.)）]+\s*/, '').trim(); })
-      .filter(Boolean).map(function (l) { return { field: '', question: l }; });
+      .filter(Boolean).map(function (l) { return { field: '', question: l, stage: null }; });
   }
+
+  /* 質問の中身から段階を読む。決め手になる言葉がなければ 0（読めない）を返す。
+   * 小さなモデルは、頼んだ段階と違う中身の質問を作ったり、段階の番号を誤って付けたりするため、表示する段階は中身で決める */
+  var STAGE_WORDS = [
+    [3, /他の(やり方|方法|手順)|ほかの(やり方|方法|手順)|別の(やり方|方法|手順)|(やり方|方法|手順)では|では(なぜ)?だめ|だめなの|代わりに|機械的に|規程どおり/],
+    [4, /例外|判断が(変わる|逆に)|逆になる|迷った|迷う|いつもと違う|当てはまらない/],
+    [2, /なぜ|どうして|なんで|理由|根拠|決め手|きっかけ/]
+  ];
+  function stageOf(question) {
+    for (var i = 0; i < STAGE_WORDS.length; i++) if (STAGE_WORDS[i][1].test(question)) return STAGE_WORDS[i][0];
+    return 0;
+  }
+  /* 表示する段階：中身から読めればそれを使い、読めなければモデルの付けた番号、それもなければ頼んだ段階 */
+  function decideStage(q, requested) {
+    var byText = stageOf(q.question);
+    if (byText) return byText;
+    if (q.stage >= 1 && q.stage <= STAGES.length && requested === 1) return q.stage;
+    return requested;
+  }
+  /* 対象の業務ではなく、様式やツールの書き方を聞いている質問 */
+  var OFF_TARGET = /棚卸し?票|引継ぎ?記録|引継書|記録の(書き|作り|記入|付け)|記録を(書|作|付)|この(記録|ツール|様式)|記入(する|のしかた|方法)/;
+  App.llmInternals = { stageOf: stageOf, decideStage: decideStage, OFF_TARGET: OFF_TARGET, firstPrompt: firstPrompt, nextPrompt: nextPrompt };
 
   function fieldLabel(k) {
     var f = App.HANDOVER_FIELDS.filter(function (x) { return x[0] === k; })[0];
@@ -242,11 +273,11 @@
           if (!lastStep.a.trim()) { alert('先に本人の答えを書いてください。答えをもとに次の質問を作ります。'); return; }
           persist();
           var cur = currentRecord();
-          busy(true, '段階' + (th.steps.length + 1) + 'の質問を作っています…');
+          busy(true, '段階' + (lastStep.stage + 1) + 'の質問を作っています…');
           chat([{ role: 'system', content: SYSTEM }, { role: 'user', content: nextPrompt(cur, th) }]).then(function (text) {
-            var q = parseQuestions(text)[0];
-            if (!q) throw new Error('質問を読み取れませんでした。');
-            var stageNo = th.steps.length + 1;
+            var q = parseQuestions(text).filter(function (x) { return !OFF_TARGET.test(x.question); })[0];
+            if (!q) throw new Error('対象の業務についての質問を読み取れませんでした。もう一度お試しください。');
+            var stageNo = decideStage(q, lastStep.stage + 1);
             th.steps.push({ stage: stageNo, q: q.question, a: '', field: STAGE_FIELD[stageNo] || th.field });
             persist(); renderThreads(); busy(false, '');
           }).catch(fail);
@@ -281,13 +312,17 @@
     box.querySelector('#iv-start').onclick = function () {
       busy(true, '質問の下書きを作っています…（PCの性能によっては1分以上かかります）');
       chat([{ role: 'system', content: SYSTEM }, { role: 'user', content: firstPrompt(currentRecord()) }]).then(function (text) {
-        var qs = parseQuestions(text).slice(0, 5);
-        if (!qs.length) throw new Error('質問を読み取れませんでした。');
+        var all = parseQuestions(text);
+        var qs = all.filter(function (q) { return !OFF_TARGET.test(q.question); }).slice(0, 5);
+        var dropped = all.length - all.filter(function (q) { return !OFF_TARGET.test(q.question); }).length;
+        if (!qs.length) throw new Error('対象の業務についての質問を読み取れませんでした。もう一度お試しください。');
         qs.forEach(function (q) {
-          var field = fieldLabel(q.field) ? q.field : '';
-          iv.threads.push({ field: field, steps: [{ stage: 1, q: q.question, a: '', field: field }] });
+          var stage = decideStage(q, 1);
+          var field = stage > 1 ? STAGE_FIELD[stage] : (fieldLabel(q.field) ? q.field : '');
+          iv.threads.push({ field: field, steps: [{ stage: stage, q: q.question, a: '', field: field }] });
         });
-        persist(); renderThreads(); busy(false, qs.length + '問の質問案を作りました。');
+        persist(); renderThreads();
+        busy(false, qs.length + '問の質問案を作りました。' + (dropped ? '業務ではなく記録の書き方などを聞いていた質問' + dropped + '問は除きました。' : ''));
       }).catch(fail);
     };
     box.querySelector('#iv-recheck').onclick = function () { msg.textContent = '確かめています…'; check(); };
