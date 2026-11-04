@@ -22,6 +22,8 @@
     ['docOnly', '文書や手順の変更で対応できる'],
     ['lowImpact', '住民への影響がない、または小さい']
   ];
+  /* 月の作業時間の計算の方法：freq＝頻度×1回の所要時間、cases＝件数（月）×1件あたりの時間 */
+  var CALC = [['freq', '頻度×1回の所要時間'], ['cases', '件数（月）×1件あたりの時間']];
   var FREQ_UNITS = [['day', '日'], ['week', '週'], ['month', '月'], ['year', '年']];
   var KIND = [['routine', '定型'], ['expert', '経験が要る']];
   var NEED = [['need', '要る'], ['noneed', '要らない']];
@@ -55,7 +57,7 @@
     return {
       id: uid(),
       name: '', category: '', division: '', section: '', role: '', procedure: '',
-      freqUnit: 'month', freqCount: null, minutes: null, casesPerMonth: null,
+      freqUnit: 'month', freqCount: null, minutes: null, casesPerMonth: null, calcMode: 'freq', minutesPerCase: null,
       forms: '', issues: '',
       kind: '', need: '', ai: '', transferSoon: '',
       burden: flags(BURDEN), ease: flags(EASE),
@@ -69,7 +71,8 @@
     var out = Object.assign(base, t || {});
     out.burden = Object.assign(newTask().burden, (t && t.burden) || {});
     out.ease = Object.assign(newTask().ease, (t && t.ease) || {});
-    ['freqCount', 'minutes', 'casesPerMonth'].forEach(function (k) { out[k] = num(out[k]); });
+    ['freqCount', 'minutes', 'casesPerMonth', 'minutesPerCase'].forEach(function (k) { out[k] = num(out[k]); });
+    if (out.calcMode !== 'cases') out.calcMode = 'freq';
     if (!out.id) out.id = uid();
     splitDivision(out);
     return out;
@@ -162,9 +165,14 @@
   }
 
   /* 月の作業時間（時間）＝ 月あたりの回数 × 1回の所要時間（分）÷ 60 */
+  /* 月の作業時間（時間）
+   *   頻度×1回の所要時間：月あたりの回数 × 1回の所要時間（分）÷ 60
+   *   件数（月）×1件あたりの時間：件数（月）× 1件あたりの時間（分）÷ 60
+   * minutesOverride を渡すと、1回（または1件）あたりの時間をその値に置き換えて計算する（改善の前後の比較用） */
+  function isCases(t) { return t.calcMode === 'cases'; }
   function monthlyHours(t, minutesOverride) {
-    var c = monthlyCount(t);
-    var m = minutesOverride !== undefined ? num(minutesOverride) : num(t.minutes);
+    var c = isCases(t) ? num(t.casesPerMonth) : monthlyCount(t);
+    var m = minutesOverride !== undefined ? num(minutesOverride) : num(isCases(t) ? t.minutesPerCase : t.minutes);
     if (c === null || m === null) return null;
     return (c * m) / 60;
   }
@@ -182,6 +190,17 @@
   function label(list, v) {
     for (var i = 0; i < list.length; i++) if (list[i][0] === v) return list[i][1];
     return '';
+  }
+
+  /* 1回（件数で計算する業務は1件）あたりの時間（分） */
+  function unitMinutes(t) { return isCases(t) ? num(t.minutesPerCase) : num(t.minutes); }
+
+  /* 月の作業時間の計算式の表示（例：日に2回×15分、月300件×6分） */
+  function calcText(t) {
+    if (isCases(t)) {
+      return '月' + (num(t.casesPerMonth) === null ? '?' : fmt(num(t.casesPerMonth), 1)) + '件×' + (num(t.minutesPerCase) === null ? '?' : fmt(num(t.minutesPerCase), 1)) + '分';
+    }
+    return (freqText(t) || '頻度?') + '×' + (num(t.minutes) === null ? '?' : fmt(num(t.minutes), 1)) + '分';
   }
 
   function freqText(t) {
@@ -272,6 +291,7 @@
 
   function exportCSV() {
     var head = ['業務名', '大分類（工程）', '課名', '係名', '役割', '手順', '頻度の単位', '頻度の回数', '1回の所要時間（分）', '件数（月）',
+      '月の作業時間の計算の方法', '1件あたりの時間（分）',
       '月あたりの回数（換算）', '月の作業時間（時間）', '使う帳票・システム', '課題メモ',
       '定型／経験が要る', '要る／要らない', 'AIに任せる候補か', '担当の異動・退職が近いか'];
     BURDEN.forEach(function (b) { head.push('負担：' + b[1]); });
@@ -281,6 +301,7 @@
     var rows = [head];
     state.tasks.forEach(function (t) {
       var r = [t.name, t.category, t.division, t.section, t.role, t.procedure, label(FREQ_UNITS, t.freqUnit), t.freqCount, t.minutes, t.casesPerMonth,
+        label(CALC, t.calcMode), t.minutesPerCase,
         fmt(monthlyCount(t), 2), fmt(monthlyHours(t), 2), t.forms, t.issues,
         label(KIND, t.kind), label(NEED, t.need), label(AI, t.ai), label(YESNO, t.transferSoon)];
       BURDEN.forEach(function (b) { r.push(t.burden[b[0]] ? '○' : ''); });
@@ -301,13 +322,13 @@
   }
 
   App.data = {
-    BURDEN: BURDEN, EASE: EASE, FREQ_UNITS: FREQ_UNITS, KIND: KIND, NEED: NEED, AI: AI, YESNO: YESNO,
+    BURDEN: BURDEN, EASE: EASE, CALC: CALC, isCases: isCases, FREQ_UNITS: FREQ_UNITS, KIND: KIND, NEED: NEED, AI: AI, YESNO: YESNO,
     JUDGE_THRESHOLD: JUDGE_THRESHOLD,
     get state() { return state; },
     load: load, save: save, newTask: newTask, getTask: getTask, upsertTask: upsertTask, deleteTask: deleteTask,
     monthlyCount: monthlyCount, monthlyHours: monthlyHours,
     burdenCount: burdenCount, easeCount: easeCount, isHighBurden: isHighBurden, isEasy: isEasy,
-    label: label, freqText: freqText, fmt: fmt, num: num, uid: uid,
+    label: label, freqText: freqText, calcText: calcText, unitMinutes: unitMinutes, fmt: fmt, num: num, uid: uid,
     exportJSON: exportJSON, importJSON: importJSON, mergeJSON: mergeJSON, orgText: orgText, newSectionRow: newSectionRow, exportCSV: exportCSV, replaceState: replaceState, download: download
   };
   App.esc = esc;

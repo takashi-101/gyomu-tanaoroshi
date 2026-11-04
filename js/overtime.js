@@ -5,7 +5,7 @@
   var D = App.data, esc = App.esc;
 
   var IMPROVE_FIELDS = [
-    ['minutes', '1回の所要時間（分）', 'num'],
+    ['minutes', '1回の所要時間（分）', 'num'], // 件数で計算する業務では「1件あたりの時間」
     ['steps', '工程数', 'num'],
     ['rework', '手戻り・差戻しの件数（月）', 'num'],
     ['staff', '対応できる職員の数', 'num'],
@@ -68,12 +68,12 @@
     });
     if (!list.length) return '<p class="empty">「1. 業務棚卸し」で業務を登録すると表示されます。</p>';
     var total = list.reduce(function (s, t) { var h = D.monthlyHours(t); return s + (h || 0); }, 0);
-    return '<div class="table-wrap"><table class="list"><thead><tr><th class="n">順位</th><th>業務名</th><th>課・係</th><th>頻度</th><th class="n">1回（分）</th><th class="n">月の作業時間（時間）</th><th class="n">構成比</th><th>定型／経験</th><th>要否</th><th>AI候補</th><th>改善候補</th></tr></thead><tbody>' +
+    return '<div class="table-wrap"><table class="list"><thead><tr><th class="n">順位</th><th>業務名</th><th>課・係</th><th>頻度・件数</th><th class="n">1回・1件（分）</th><th class="n">月の作業時間（時間）</th><th class="n">構成比</th><th>定型／経験</th><th>要否</th><th>AI候補</th><th>改善候補</th></tr></thead><tbody>' +
       list.map(function (t, i) {
         var h = D.monthlyHours(t), c = isCandidate(t);
         return '<tr' + (c ? ' class="flag"' : '') + '><td class="n">' + (h === null ? '' : i + 1) + '</td><td class="name">' + esc(t.name) + '</td><td>' + esc(D.orgText(t)) + '</td>' +
-          '<td>' + esc(D.freqText(t)) + '</td><td class="n">' + esc(D.fmt(t.minutes, 1)) + '</td>' +
-          '<td class="n">' + (h === null ? '<span class="hint">頻度か所要時間が未記入</span>' : esc(D.fmt(h, 1))) + '</td>' +
+          '<td>' + esc(D.isCases(t) ? (t.casesPerMonth === null ? '' : '月' + D.fmt(t.casesPerMonth, 1) + '件') : D.freqText(t)) + '</td><td class="n">' + esc(D.fmt(D.unitMinutes(t), 1)) + (D.isCases(t) ? '<span class="hint">／件</span>' : '') + '</td>' +
+          '<td class="n">' + (h === null ? '<span class="hint">' + (D.isCases(t) ? '件数か1件あたりの時間が未記入' : '頻度か所要時間が未記入') + '</span>' : esc(D.fmt(h, 1))) + '</td>' +
           '<td class="n">' + (h === null || !total ? '' : D.fmt((h / total) * 100, 0) + '%') + '</td>' +
           '<td>' + esc(D.label(D.KIND, t.kind)) + '</td><td>' + esc(D.label(D.NEED, t.need)) + '</td><td>' + esc(D.label(D.AI, t.ai)) + '</td>' +
           '<td>' + (c ? '<span class="badge warn">改善候補</span> <span class="hint">' + esc(c.join('・')) + '</span>' : '') + '</td></tr>';
@@ -119,11 +119,12 @@
       if (f[2] === 'yesno') {
         return '<select name="' + side + '.' + f[0] + '"><option value="">未記入</option><option value="yes"' + (v === 'yes' ? ' selected' : '') + '>あり</option><option value="no"' + (v === 'no' ? ' selected' : '') + '>なし</option></select>';
       }
-      var ph = side === 'before' && f[0] === 'minutes' && t.minutes !== null ? ' placeholder="棚卸し票：' + esc(t.minutes) + '"' : '';
+      var um = D.unitMinutes(t);
+      var ph = side === 'before' && f[0] === 'minutes' && um !== null ? ' placeholder="棚卸し票：' + esc(um) + '"' : '';
       return '<input type="number" min="0" step="any" class="num" name="' + side + '.' + f[0] + '" value="' + esc(v === null || v === undefined ? '' : v) + '"' + ph + '>';
     };
     return html + '<form id="imp-form" class="form"><table class="list compact"><thead><tr><th>項目</th><th>改善の前</th><th>改善の後</th></tr></thead><tbody>' +
-      IMPROVE_FIELDS.map(function (f) { return '<tr><td>' + esc(f[1]) + '</td><td>' + cell('before', f) + '</td><td>' + cell('after', f) + '</td></tr>'; }).join('') +
+      IMPROVE_FIELDS.map(function (f) { return '<tr><td>' + esc(f[0] === 'minutes' && D.isCases(t) ? '1件あたりの時間（分）' : f[1]) + '</td><td>' + cell('before', f) + '</td><td>' + cell('after', f) + '</td></tr>'; }).join('') +
       '</tbody></table>' +
       '<div class="field"><label for="imp-note">改善の内容（メモ）</label><input id="imp-note" name="note" value="' + esc(imp.note || '') + '" placeholder="例：様式を統一し、確認項目をチェックリスト化"></div>' +
       '<div class="actions"><button type="submit" class="primary">保存</button><button type="button" id="imp-clear" class="danger">この業務の記録を消す</button></div></form>';
@@ -153,9 +154,9 @@
         '<td class="n">' + (bs === null ? '―' : bs) + ' → ' + (as === null ? '―' : as) + (bs !== null && as !== null && as !== bs ? '（' + (as > bs ? '+' : '') + (as - bs) + '人）' : '') + '</td>' +
         '<td>' + yn(t.improve.before.manual) + ' → ' + yn(t.improve.after.manual) + '</td></tr>';
     }).join('');
-    return '<div class="table-wrap"><table class="list"><thead><tr><th>業務名</th><th class="n">1回の所要時間（分）</th><th class="n">差</th><th class="n">減少率</th><th class="n">月の作業時間（時間）</th><th class="n">差</th><th class="n">工程数</th><th class="n">差</th><th class="n">手戻り・差戻し（月）</th><th class="n">差</th><th class="n">対応できる職員</th><th>手順書</th></tr></thead><tbody>' +
+    return '<div class="table-wrap"><table class="list"><thead><tr><th>業務名</th><th class="n">1回（1件）あたりの時間（分）</th><th class="n">差</th><th class="n">減少率</th><th class="n">月の作業時間（時間）</th><th class="n">差</th><th class="n">工程数</th><th class="n">差</th><th class="n">手戻り・差戻し（月）</th><th class="n">差</th><th class="n">対応できる職員</th><th>手順書</th></tr></thead><tbody>' +
       rows + '</tbody></table></div>' +
-      (hasSaved ? '<p class="summary">記録のある業務の月の作業時間の差の合計：<strong>' + esc(signed(totalSaved, '時間', 1)) + '</strong>（1回の所要時間の前後の値×棚卸し票の頻度で換算）</p>' : '');
+      (hasSaved ? '<p class="summary">記録のある業務の月の作業時間の差の合計：<strong>' + esc(signed(totalSaved, '時間', 1)) + '</strong>（1回（1件）あたりの時間の前後の値×棚卸し票の頻度または件数で換算）</p>' : '');
   }
 
   /* --- 係単位の残業 --- */
@@ -265,7 +266,7 @@
   function render(el) {
     el.innerHTML =
       settingsHtml() +
-      '<div class="panel" id="ot-rank"><h2>月の作業時間（多い順）</h2><p class="lead">頻度×1回の所要時間から月の作業時間を出しています。</p>' + rankingHtml() + '</div>' +
+      '<div class="panel" id="ot-rank"><h2>月の作業時間（多い順）</h2><p class="lead">業務ごとに選んだ方法（頻度×1回の所要時間、または件数（月）×1件あたりの時間）で月の作業時間を出しています。</p>' + rankingHtml() + '</div>' +
       '<div class="panel" id="ot-matrix"><h2>負担の大きさ×着手しやすさの4区分</h2>' + matrixHtml() + '</div>' +
       '<div class="panel" id="ot-improve"><h2>業務ごとの改善の前と後</h2><p class="lead">BPRの効果を、業務ごとの所要時間・工程数・手戻り件数などで記録します。</p>' + improveFormHtml() + '<h3>改善の前後の比較</h3>' + improveSummaryHtml() + '</div>' +
       '<div class="panel" id="ot-sections"><h2>係単位の残業時間</h2>' + sectionsHtml() + sectionsSummaryHtml() + '</div>' +

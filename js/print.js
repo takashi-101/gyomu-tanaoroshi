@@ -31,8 +31,8 @@
       '<tr><th>業務名</th><td colspan="3"><strong>' + esc(t.name) + '</strong></td></tr>' +
       '<tr><th>所属（課・係）</th><td>' + text(D.orgText(t)) + '</td><th>担当の役割</th><td>' + text(t.role) + '</td></tr>' +
       '<tr><th>大分類（工程）</th><td>' + text(t.category) + '</td><th>頻度</th><td>' + text(D.freqText(t)) + '</td></tr>' +
-      '<tr><th>1回の所要時間</th><td>' + (t.minutes === null ? text('') : esc(D.fmt(t.minutes, 1)) + '分') + '</td><th>件数（月）／月の作業時間</th><td>' +
-      (t.casesPerMonth === null ? '―' : esc(D.fmt(t.casesPerMonth, 1)) + '件') + '　／　' + (hours === null ? '―' : esc(D.fmt(hours, 1)) + '時間') + '</td></tr>' +
+      '<tr><th>' + (D.isCases(t) ? '1件あたりの時間' : '1回の所要時間') + '</th><td>' + (D.unitMinutes(t) === null ? text('') : esc(D.fmt(D.unitMinutes(t), 1)) + '分') + '</td><th>件数（月）／月の作業時間</th><td>' +
+      (t.casesPerMonth === null ? '―' : esc(D.fmt(t.casesPerMonth, 1)) + '件') + '　／　' + (hours === null ? '―' : esc(D.fmt(hours, 1)) + '時間') + '<small class="pr-calc">（' + esc(D.label(D.CALC, t.calcMode)) + '：' + esc(D.calcText(t)) + '）</small></td></tr>' +
       '<tr><th>使う帳票・システム</th><td colspan="3">' + text(t.forms) + '</td></tr>' +
       '<tr><th>手順の概要</th><td colspan="3" class="pr-text">' + text(t.procedure) + '</td></tr>' +
       '</table>' +

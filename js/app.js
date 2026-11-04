@@ -130,6 +130,32 @@
   }
   App.mergeFiles = mergeFiles;
 
+  /* 公開URL（http/https）で開いたとき、ブラウザが古い版の index.html を使っていないかを確かめる。
+   * version.json をキャッシュを使わずに読み、index.html に書いた版と違えば、index.html を取り直して一度だけ開き直す。
+   * ファイルを直接開いた場合（file://）は何もしない。 */
+  function checkUpdate() {
+    if (!/^https?:$/.test(location.protocol) || !window.fetch) return;
+    var meta = document.querySelector('meta[name="app-version"]');
+    if (!meta || !meta.content) return;
+    fetch('version.json', { cache: 'no-store' }).then(function (r) { return r.ok ? r.json() : null; }).then(function (j) {
+      if (!j || !j.version || j.version === meta.content) return;
+      var key = 'gyomu-reloaded-' + j.version;
+      try {
+        if (sessionStorage.getItem(key)) return; // 開き直しは一度だけ（繰り返さない）
+        sessionStorage.setItem(key, '1');
+      } catch (e) { return; }
+      var dirty = leaveGuards.some(function (g) { return !!g(); });
+      var notice = document.getElementById('notice');
+      if (dirty) {
+        notice.textContent = '新しい版が公開されています。入力を保存してから、ページを開き直してください。';
+        notice.className = 'notice info'; notice.hidden = false;
+        return;
+      }
+      fetch(location.href.split('#')[0], { cache: 'reload' }).then(function () { location.reload(); }, function () { location.reload(); });
+    }).catch(function () { /* 確かめられないときは今の版のまま使う */ });
+  }
+  App.checkUpdate = checkUpdate;
+
   function init() {
     App.data.load();
     views.sort(function (a, b) { return a.order - b.order; });
@@ -152,6 +178,7 @@
       if (saved && views.some(function (v) { return v.id === saved; })) first = saved;
     } catch (e) { /* 既定のタブで始める */ }
     App.show(first);
+    checkUpdate();
     if (App.storageError) {
       document.getElementById('notice').textContent = 'ブラウザ内の保存領域が使えません。入力内容はJSONで書き出して控えてください。';
       document.getElementById('notice').hidden = false;

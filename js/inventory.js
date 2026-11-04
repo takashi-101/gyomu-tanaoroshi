@@ -58,6 +58,9 @@
       '<input type="number" name="freqCount" min="0" step="any" value="' + esc(t.freqCount === null ? '' : t.freqCount) + '" aria-label="頻度の回数" class="num"><span>回</span></div></div>' +
       '<div class="field"><label for="f-minutes">1回の所要時間（分）</label><input id="f-minutes" type="number" name="minutes" min="0" step="any" class="num" value="' + esc(t.minutes === null ? '' : t.minutes) + '"></div>' +
       '<div class="field"><label for="f-cases">件数（月）</label><input id="f-cases" type="number" name="casesPerMonth" min="0" step="any" class="num" value="' + esc(t.casesPerMonth === null ? '' : t.casesPerMonth) + '"></div>' +
+      '<div class="field"><label for="f-mpc">1件あたりの時間（分）</label><input id="f-mpc" type="number" name="minutesPerCase" min="0" step="any" class="num" value="' + esc(t.minutesPerCase === null ? '' : t.minutesPerCase) + '"></div>' +
+      '<div class="field wide calc-mode"><label>月の作業時間の計算</label><div class="row">' + radios('calcMode', D.CALC, t.calcMode, false) + '</div>' +
+      '<p class="hint">回数で量が決まる業務は「頻度×1回の所要時間」、窓口の交付のように件数で量が決まる業務は「件数（月）×1件あたりの時間」を選んでください。<output id="calc-out"></output></p></div>' +
       '<div class="field wide"><label for="f-procedure">手順</label><textarea id="f-procedure" name="procedure" rows="4" placeholder="自由記述">' + esc(t.procedure) + '</textarea></div>' +
       '<div class="field wide"><label for="f-forms">使う帳票・システム</label><input id="f-forms" name="forms" value="' + esc(t.forms) + '" placeholder="例：支出命令書、財務会計システム"></div>' +
       '<div class="field wide"><label for="f-issues">課題メモ</label><textarea id="f-issues" name="issues" rows="3" placeholder="滞留・手戻り・割り込みで中断する箇所など">' + esc(t.issues) + '</textarea></div>' +
@@ -78,6 +81,15 @@
       '</form>';
   }
 
+  function updateCalc(form) {
+    var t = readForm(form, JSON.parse(JSON.stringify(editing)));
+    var h = D.monthlyHours(t);
+    form.querySelector('#calc-out').textContent = h === null ? '' : '　→ 月の作業時間：' + D.fmt(h, 1) + '時間（' + D.calcText(t) + '）';
+    var cases = t.calcMode === 'cases';
+    form.querySelector('#f-mpc').closest('.field').classList.toggle('used', cases);
+    form.querySelector('#f-minutes').closest('.field').classList.toggle('used', !cases);
+  }
+
   function updateCounts(form) {
     ['burden', 'ease'].forEach(function (g) {
       var n = form.querySelectorAll('input[data-group="' + g + '"]:checked').length;
@@ -90,11 +102,12 @@
 
   function readForm(form, t) {
     var fd = new FormData(form);
-    ['name', 'category', 'division', 'section', 'role', 'procedure', 'forms', 'issues', 'freqUnit', 'kind', 'need', 'ai', 'transferSoon'].forEach(function (k) {
+    ['name', 'category', 'division', 'section', 'role', 'procedure', 'forms', 'issues', 'freqUnit', 'calcMode', 'kind', 'need', 'ai', 'transferSoon'].forEach(function (k) {
       var v = fd.get(k);
       t[k] = v === null ? '' : String(v).trim();
     });
-    ['freqCount', 'minutes', 'casesPerMonth'].forEach(function (k) { t[k] = D.num(fd.get(k)); });
+    ['freqCount', 'minutes', 'casesPerMonth', 'minutesPerCase'].forEach(function (k) { t[k] = D.num(fd.get(k)); });
+    if (t.calcMode !== 'cases') t.calcMode = 'freq';
     form.querySelectorAll('input[data-group]').forEach(function (cb) { t[cb.dataset.group][cb.value] = cb.checked; });
     return t;
   }
@@ -191,7 +204,7 @@
         '<td>' + esc(t.category) + '</td><td>' + esc(D.orgText(t)) + '</td><td>' + esc(t.role) + '</td>' +
         '<td>' + esc(D.freqText(t)) + '</td>' +
         '<td class="n">' + esc(D.fmt(t.minutes, 1)) + '</td>' +
-        '<td class="n">' + esc(D.fmt(D.monthlyHours(t), 1)) + '</td>' +
+        '<td class="n" title="' + esc(D.calcText(t)) + '">' + esc(D.fmt(D.monthlyHours(t), 1)) + (D.isCases(t) ? ' <span class="badge accent">件数</span>' : '') + '</td>' +
         '<td class="n">' + esc(D.fmt(t.casesPerMonth, 1)) + '</td>' +
         '<td>' + esc(D.label(D.KIND, t.kind)) + '</td><td>' + esc(D.label(D.NEED, t.need)) + '</td>' +
         '<td>' + esc(D.label(D.AI, t.ai)) + '</td><td>' + esc(D.label(D.YESNO, t.transferSoon)) + '</td>' +
@@ -202,7 +215,7 @@
     if (!all.length) return '<p class="empty">まだ業務が登録されていません。「新規登録」から業務棚卸し票を作成してください。</p>';
     return '<p class="count">' + list.length + ' 件を表示（全 ' + all.length + ' 件）</p>' +
       '<div class="table-wrap"><table class="list"><thead><tr>' + head + '</tr></thead><tbody>' + body + '</tbody></table></div>' +
-      '<p class="hint">月の作業時間＝頻度を月あたりの回数に換算した値×1回の所要時間。日次は月' + esc(D.state.settings.daysPerMonth) + '日、週次は月' + esc(D.state.settings.weeksPerMonth) + '週、年次は12で割って換算しています' + (App.hasView('overtime') ? '（換算の日数は「3. 残業の見える化」で変更できます）' : '') + '。</p>';
+      '<p class="hint">月の作業時間は、業務ごとに選んだ方法で計算します。「頻度×1回の所要時間」は、頻度を月あたりの回数に換算した値×1回の所要時間、「件数（月）×1件あたりの時間」（<span class="badge accent">件数</span>の印）は、件数（月）×1件あたりの時間です。日次は月' + esc(D.state.settings.daysPerMonth) + '日、週次は月' + esc(D.state.settings.weeksPerMonth) + '週、年次は12で割って換算しています' + (App.hasView('overtime') ? '（換算の日数は「3. 残業の見える化」で変更できます）' : '') + '。</p>';
   }
 
   function render(el) {
@@ -229,7 +242,10 @@
     var form = el.querySelector('#inv-form');
     if (form) {
       updateCounts(form);
+      updateCalc(form);
       form.addEventListener('change', function (e) { if (e.target.dataset.group) updateCounts(form); });
+      form.addEventListener('input', function () { updateCalc(form); });
+      form.addEventListener('change', function () { updateCalc(form); });
       form.onsubmit = function (e) {
         e.preventDefault();
         var t = readForm(form, JSON.parse(JSON.stringify(editing)));

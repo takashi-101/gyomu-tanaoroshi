@@ -149,3 +149,7 @@ button.small { padding: 1px 8px; font-size: .8rem; }
 .pr-foot { text-align: right; font-size: 8.5pt; margin: 1.5mm 0 0; }
 table.list tr.subtotal td { background: #eef1f5; font-weight: 600; }
 .notice.info { background: var(--accent-weak); color: var(--accent); }
+.field.used label { color: var(--accent); }
+.field.used input { border-color: var(--accent); }
+.calc-mode .row { padding: 0; }
+.pr-calc { display: block; font-size: 8pt; }

@@ -87,7 +87,7 @@
       {
         name: '住民票の写し等の交付', category: '受付・交付', section: MADO, role: '窓口担当（交代制）',
         procedure: '請求書を受け付け、本人確認書類と請求事由を確認し、システムから発行して手数料を収納し交付する。',
-        freqUnit: 'day', freqCount: 40, minutes: 8, casesPerMonth: 800, forms: '交付請求書、住民記録システム、レジ',
+        freqUnit: 'day', freqCount: 40, minutes: 8, casesPerMonth: 800, calcMode: 'cases', minutesPerCase: 8, forms: '交付請求書、住民記録システム、レジ',
         issues: '請求書の記入誤りで書き直しが多い。月曜と月末に待ち時間が長くなる。',
         kind: 'routine', need: 'need', ai: 'no', transferSoon: 'no',
         burden: f(['daily', 'error', 'inquiry']), ease: f(['noSystem'])
@@ -120,7 +120,7 @@
       {
         name: '郵送請求の審査・発送', category: '審査', section: MADO, role: '郵送担当',
         procedure: '郵送で届いた請求書の記載・本人確認書類の写し・定額小為替を確認し、発行した証明書を返信用封筒で発送する。',
-        freqUnit: 'day', freqCount: 15, minutes: 6, casesPerMonth: 300, forms: '郵送請求書、定額小為替、住民記録システム、発送簿',
+        freqUnit: 'day', freqCount: 15, minutes: 6, casesPerMonth: 300, calcMode: 'cases', minutesPerCase: 6, forms: '郵送請求書、定額小為替、住民記録システム、発送簿',
         issues: '記載不備の問い合わせ（電話・文書）で処理が止まる。担当が少なく休むと滞留する。',
         kind: 'routine', need: 'need', ai: 'unknown', transferSoon: 'no',
         burden: f(['daily', 'slow', 'pressure']), ease: f(['inSection', 'noOutside', 'noRule', 'docOnly']),
