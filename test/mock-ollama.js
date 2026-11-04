@@ -20,7 +20,7 @@ const server = http.createServer((req, res) => {
     if (req.url === '/__log') { res.writeHead(200, { 'Content-Type': 'application/json' }); return res.end(JSON.stringify(log)); }
     if (req.url === '/api/tags') {
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      return res.end(JSON.stringify({ models: [{ name: 'qwen2.5:7b', model: 'qwen2.5:7b', modified_at: '2026-10-01T00:00:00Z', size: 4683087332, details: { family: 'qwen2', parameter_size: '7.6B', quantization_level: 'Q4_K_M' } }] }));
+      return res.end(JSON.stringify({ models: [{ name: 'gemma3:4b', model: 'gemma3:4b', modified_at: '2026-10-01T00:00:00Z' }] }));
     }
     if (req.url === '/api/chat' && req.method === 'POST') {
       const j = JSON.parse(body);

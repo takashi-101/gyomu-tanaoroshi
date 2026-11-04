@@ -6,7 +6,7 @@
   var App = window.App;
   var D = App.data, esc = App.esc;
 
-  var DEFAULTS = { ollamaUrl: 'http://localhost:11434', model: 'qwen2.5:7b' };
+  var DEFAULTS = { ollamaUrl: 'http://localhost:11434', model: 'gemma3:4b' };
   var status = { checked: false, ok: false, models: [], error: '' };
 
   // 段階的に深める聞き取りの流れ
